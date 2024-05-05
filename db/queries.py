@@ -91,13 +91,25 @@ def update_user(user_id, email=None, password=None):
 
 def delete_user(user_id):
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
-        deleted_count = cursor.rowcount
-        if deleted_count == 0:
-            print(f"User with ID {user_id} not found.")  # Log for debugging
-            raise ValueError("User not found")
-        print(f"User with ID {user_id} deleted successfully.")  # Log for successful deletion
-        return "User deleted successfully"
+        try:
+            # First, delete any questionnaires associated with the user.
+            # This step assumes that there are no further nested foreign key dependencies in the questionnaire table.
+            cursor.execute("DELETE FROM questionnaire WHERE user_id = %s", (user_id,))
+            print(f"Deleted questionnaires for user with ID {user_id}.")  # Log for successful deletion of questionnaires
+
+            # Proceed to delete the user.
+            cursor.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+            deleted_count = cursor.rowcount
+            if deleted_count == 0:
+                print(f"User with ID {user_id} not found.")  # Log for debugging
+                raise ValueError("User not found")
+
+            print(f"User with ID {user_id} deleted successfully.")  # Log for successful deletion
+            return "User deleted successfully"
+
+        except Exception as e:
+            print(f"Failed to delete user with ID {user_id}: {e}")  # Log any exception that arises
+            raise RuntimeError(f"Failed to delete user due to: {str(e)}")  # Raise a more generic error for external handling
 
 def is_email_unique(email):
     with get_db_cursor() as cursor:
